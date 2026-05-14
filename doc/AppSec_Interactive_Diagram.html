@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Application Security Reference Model</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070B14;
+  --bg2:#0D1424;
+  --bg3:#111929;
+  --panel:#0A0F1E;
+  --border:#1E2B45;
+  --border2:#243352;
+  --text:#C8D4E8;
+  --text2:#7A8FAD;
+  --text3:#4A5A75;
+
+  --gov:#7B61FF;   --gov-dim:#2A1F5A;   --gov-glow:rgba(123,97,255,0.25);
+  --iam:#00C896;   --iam-dim:#003D2E;   --iam-glow:rgba(0,200,150,0.20);
+  --sdlc:#3B9EFF;  --sdlc-dim:#0D2B50;  --sdlc-glow:rgba(59,158,255,0.20);
+  --api:#0DBFFF;   --api-dim:#003040;   --api-glow:rgba(13,191,255,0.20);
+  --inf:#8A8FFF;   --inf-dim:#1A1B4A;   --inf-glow:rgba(138,143,255,0.20);
+  --dat:#FFB547;   --dat-dim:#3D2800;   --dat-glow:rgba(255,181,71,0.20);
+  --thr:#FF6B6B;   --thr-dim:#3D0F0F;   --thr-glow:rgba(255,107,107,0.22);
+  --zt:#22D3A0;    --zt-dim:#052820;    --zt-glow:rgba(34,211,160,0.18);
+  --ops:#64748B;   --ops-dim:#0F1520;   --ops-glow:rgba(100,116,139,0.15);
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;overflow:hidden}
+
+/* ── LAYOUT ─────────────────────────────────────────────────────── */
+#shell{display:flex;flex-direction:column;height:100vh}
+
+#topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 20px;border-bottom:1px solid var(--border);
+  background:var(--bg2);flex-shrink:0;gap:12px
+}
+#topbar-left{display:flex;flex-direction:column;gap:2px}
+.top-title{font-size:13px;font-weight:600;color:var(--text);letter-spacing:.04em;font-family:'IBM Plex Mono',monospace}
+.top-sub{font-size:11px;color:var(--text3);letter-spacing:.03em}
+#topbar-right{display:flex;align-items:center;gap:8px}
+
+.scenario-btn{
+  font:500 11px 'IBM Plex Mono',monospace;padding:5px 11px;border-radius:4px;
+  cursor:pointer;transition:all .15s;border:1px solid var(--border2);
+  background:var(--bg3);color:var(--text2);letter-spacing:.03em
+}
+.scenario-btn:hover{color:var(--text);border-color:var(--text3)}
+.scenario-btn.active{background:var(--border2);color:var(--text)}
+.sep{width:1px;height:20px;background:var(--border);flex-shrink:0}
+
+#main{display:flex;flex:1;min-height:0}
+
+/* ── DIAGRAM CANVAS ─────────────────────────────────────────────── */
+#canvas{flex:1;overflow:auto;padding:20px;display:flex;align-items:flex-start;justify-content:center}
+
+.dg{display:flex;flex-direction:column;gap:8px;width:100%;max-width:780px}
+.row{display:flex;gap:8px}
+.row.full .blk{flex:1}
+.row.thirds .blk{flex:1}
+.row.halves .blk{flex:1}
+
+.blk{
+  position:relative;border-radius:8px;cursor:pointer;
+  border:1px solid;padding:13px 16px;
+  transition:transform .14s, box-shadow .14s, border-color .14s, background .14s;
+  overflow:hidden
+}
+.blk::before{
+  content:'';position:absolute;inset:0;opacity:0;
+  transition:opacity .14s;border-radius:inherit;
+  background:linear-gradient(135deg,rgba(255,255,255,.03) 0%,transparent 60%)
+}
+.blk:hover::before{opacity:1}
+.blk:hover{transform:translateY(-2px)}
+.blk.active{outline:2px solid;outline-offset:1px}
+
+/* per-domain colors */
+.blk.gov{background:var(--gov-dim);border-color:rgba(123,97,255,.4);color:var(--gov)}
+.blk.gov:hover,.blk.gov.active{border-color:var(--gov);box-shadow:0 0 24px var(--gov-glow),0 4px 12px rgba(0,0,0,.4)}
+.blk.gov.active{outline-color:var(--gov)}
+
+.blk.iam{background:var(--iam-dim);border-color:rgba(0,200,150,.35);color:var(--iam)}
+.blk.iam:hover,.blk.iam.active{border-color:var(--iam);box-shadow:0 0 24px var(--iam-glow),0 4px 12px rgba(0,0,0,.4)}
+.blk.iam.active{outline-color:var(--iam)}
+
+.blk.sdlc{background:var(--sdlc-dim);border-color:rgba(59,158,255,.35);color:var(--sdlc)}
+.blk.sdlc:hover,.blk.sdlc.active{border-color:var(--sdlc);box-shadow:0 0 24px var(--sdlc-glow),0 4px 12px rgba(0,0,0,.4)}
+.blk.sdlc.active{outline-color:var(--sdlc)}
+
+.blk.api{background:var(--api-dim);border-color:rgba(13,191,255,.35);color:var(--api)}
+.blk.api:hover,.blk.api.active{border-color:var(--api);box-shadow:0 0 24px var(--api-glow),0 4px 12px rgba(0,0,0,.4)}
+.blk.api.active{outline-color:var(--api)}
+
+.blk.inf{background:var(--inf-dim);border-color:rgba(138,143,255,.35);color:var(--inf)}
+.blk.inf:hover,.blk.inf.active{border-color:var(--inf);box-shadow:0 0 24px var(--inf-glow),0 4px 12px rgba(0,0,0,.4)}
+.blk.inf.active{outline-color:var(--inf)}
+
+.blk.dat{background:var(--dat-dim);border-color:rgba(255,181,71,.35);color:var(--dat)}
+.blk.dat:hover,.blk.dat.active{border-color:var(--dat);box-shadow:0 0 24px var(--dat-glow),0 4px 12px rgba(0,0,0,.4)}
+.blk.dat.active{outline-color:var(--dat)}
+
+.blk.thr{background:var(--thr-dim);border-color:rgba(255,107,107,.35);color:var(--thr)}
+.blk.thr:hover,.blk.thr.active{border-color:var(--thr);box-shadow:0 0 24px var(--thr-glow),0 4px 12px rgba(0,0,0,.4)}
+.blk.thr.active{outline-color:var(--thr)}
+
+.blk.zt{background:var(--zt-dim);border-color:rgba(34,211,160,.35);color:var(--zt)}
+.blk.zt:hover,.blk.zt.active{border-color:var(--zt);box-shadow:0 0 24px var(--zt-glow),0 4px 12px rgba(0,0,0,.4)}
+.blk.zt.active{outline-color:var(--zt)}
+
+.blk.ops{background:var(--ops-dim);border-color:rgba(100,116,139,.35);color:var(--ops)}
+.blk.ops:hover,.blk.ops.active{border-color:var(--ops);box-shadow:0 0 24px var(--ops-glow),0 4px 12px rgba(0,0,0,.4)}
+.blk.ops.active{outline-color:var(--ops)}
+
+.blk.dimmed{opacity:.22;pointer-events:none}
+
+.blk-label{font-size:12px;font-weight:600;letter-spacing:.04em;font-family:'IBM Plex Mono',monospace;display:flex;align-items:center;gap:7px}
+.blk-icon{font-size:14px;line-height:1}
+.blk-sub{font-size:10.5px;color:var(--text3);margin-top:5px;line-height:1.5;font-weight:400;font-family:'IBM Plex Sans',sans-serif}
+.blk-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.tag{font-size:9.5px;font-family:'IBM Plex Mono',monospace;padding:2px 6px;border-radius:3px;border:1px solid;opacity:.7;white-space:nowrap}
+
+.blk.gov .tag{border-color:rgba(123,97,255,.4);background:rgba(123,97,255,.08);color:var(--gov)}
+.blk.iam .tag{border-color:rgba(0,200,150,.35);background:rgba(0,200,150,.07);color:var(--iam)}
+.blk.sdlc .tag{border-color:rgba(59,158,255,.35);background:rgba(59,158,255,.07);color:var(--sdlc)}
+.blk.api .tag{border-color:rgba(13,191,255,.35);background:rgba(13,191,255,.07);color:var(--api)}
+.blk.inf .tag{border-color:rgba(138,143,255,.35);background:rgba(138,143,255,.08);color:var(--inf)}
+.blk.dat .tag{border-color:rgba(255,181,71,.35);background:rgba(255,181,71,.07);color:var(--dat)}
+.blk.thr .tag{border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.07);color:var(--thr)}
+.blk.zt .tag{border-color:rgba(34,211,160,.35);background:rgba(34,211,160,.07);color:var(--zt)}
+.blk.ops .tag{border-color:rgba(100,116,139,.35);background:rgba(100,116,139,.07);color:var(--ops)}
+
+/* ── DETAIL PANEL ───────────────────────────────────────────────── */
+#panel{
+  width:0;flex-shrink:0;overflow:hidden;
+  transition:width .28s cubic-bezier(.4,0,.2,1);
+  border-left:1px solid transparent;background:var(--panel)
+}
+#panel.open{width:380px;border-left-color:var(--border)}
+#panel-inner{width:380px;height:100%;display:flex;flex-direction:column;overflow:hidden}
+
+#ph{padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+#ph-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+#ph-icon{font-size:18px;line-height:1}
+#ph-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:2px 4px;border-radius:3px;transition:color .12s;line-height:1}
+#ph-close:hover{color:var(--text)}
+#ph-name{font-size:14px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-top:4px}
+#ph-desc{font-size:11.5px;color:var(--text2);line-height:1.6;margin-top:6px}
+
+.ptabs{display:flex;gap:0;border-bottom:1px solid var(--border);flex-shrink:0}
+.ptab{
+  flex:1;background:none;border:none;font:500 11px 'IBM Plex Mono',monospace;
+  color:var(--text3);padding:9px 6px;cursor:pointer;
+  transition:color .12s, border-color .12s;
+  border-bottom:2px solid transparent;margin-bottom:-1px;letter-spacing:.02em
+}
+.ptab:hover{color:var(--text2)}
+.ptab.on{color:var(--text);border-bottom-color:var(--text2)}
+
+#pbody{flex:1;overflow-y:auto;padding:14px 16px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+#pbody::-webkit-scrollbar{width:4px}
+#pbody::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+.psect{font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);font-family:'IBM Plex Mono',monospace;margin:14px 0 7px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.psect:first-child{margin-top:0}
+.pitem{display:flex;gap:8px;padding:4px 0;font-size:12px;color:var(--text2);line-height:1.6;align-items:flex-start}
+.pitem-dot{flex-shrink:0;margin-top:6px;width:5px;height:5px;border-radius:50%;background:var(--text3)}
+.pitem.ctrl .pitem-dot{background:#3B9EFF}
+.pitem.fail .pitem-dot{background:#FF6B6B}
+.pitem.tool .pitem-dot{background:#FFB547}
+.pitem.fwk .pitem-dot{background:#22D3A0}
+.p-purpose{font-size:12.5px;color:var(--text2);line-height:1.7;margin-bottom:8px}
+
+/* ── SCENARIO TRACE ─────────────────────────────────────────────── */
+.blk.trace-high{animation:pulse-high 1.8s ease-in-out infinite}
+.blk.trace-med{opacity:.55}
+@keyframes pulse-high{0%,100%{transform:translateY(-1px)}50%{transform:translateY(-3px)}}
+
+/* ── STATUS BAR ─────────────────────────────────────────────────── */
+#statusbar{
+  padding:6px 20px;border-top:1px solid var(--border);background:var(--bg2);
+  display:flex;align-items:center;gap:16px;flex-shrink:0;font-family:'IBM Plex Mono',monospace
+}
+.sb-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text3)}
+.sb-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.sb-dot.g{background:#22D3A0}
+.sb-dot.y{background:#FFB547}
+.sb-dot.r{background:#FF6B6B}
+.sb-spacer{flex:1}
+#sb-hint{font-size:10px;color:var(--text3);font-family:'IBM Plex Mono',monospace}
+</style>
+</head>
+<body>
+<div id="shell">
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div id="topbar-left">
+    <div class="top-title">⬡ APPLICATION SECURITY REFERENCE MODEL</div>
+    <div class="top-sub">Fortune 100 Enterprise Edition · Audience: CISO / Architects / Security Professionals</div>
+  </div>
+  <div id="topbar-right">
+    <span style="font-size:10px;color:var(--text3);font-family:'IBM Plex Mono',monospace;letter-spacing:.05em">SCENARIOS</span>
+    <button class="scenario-btn" onclick="runScenario('cred')">Credential Theft</button>
+    <button class="scenario-btn" onclick="runScenario('supply')">Supply Chain</button>
+    <button class="scenario-btn" onclick="runScenario('exfil')">Data Exfil</button>
+    <button class="scenario-btn" onclick="runScenario('cloud')">Cloud Breach</button>
+    <button class="scenario-btn" onclick="runScenario('api')">API Exploit</button>
+    <div class="sep"></div>
+    <button class="scenario-btn" onclick="clearScenario()" style="color:var(--text3)">✕ Clear</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- DIAGRAM CANVAS -->
+  <div id="canvas">
+    <div class="dg">
+
+      <!-- ROW 1: Governance -->
+      <div class="row full">
+        <div class="blk gov" id="blk-gov" onclick="openPanel('gov')">
+          <div class="blk-label"><span class="blk-icon">⚖</span> Governance, Risk &amp; Compliance</div>
+          <div class="blk-sub">Risk appetite · Policy lifecycle · Regulatory compliance · Third-party risk · Board reporting</div>
+          <div class="blk-tags">
+            <span class="tag">NIST CSF 2.0</span>
+            <span class="tag">ISO 27001</span>
+            <span class="tag">PCI-DSS 4.0</span>
+            <span class="tag">SOX ITGC</span>
+            <span class="tag">GDPR/CCPA</span>
+            <span class="tag">HIPAA</span>
+            <span class="tag">ServiceNow GRC</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 2: Identity -->
+      <div class="row full">
+        <div class="blk iam" id="blk-iam" onclick="openPanel('iam')">
+          <div class="blk-label"><span class="blk-icon">🔑</span> Identity &amp; Access Management</div>
+          <div class="blk-sub">Enterprise IdP · FIDO2 MFA · PAM (JIT) · RBAC/ABAC · Workload identity (SPIFFE/SPIRE) · HashiCorp Vault · CIEM</div>
+          <div class="blk-tags">
+            <span class="tag">Zero Standing Privilege</span>
+            <span class="tag">OAuth 2.1</span>
+            <span class="tag">Okta / Entra ID</span>
+            <span class="tag">CyberArk</span>
+            <span class="tag">mTLS</span>
+            <span class="tag">Lifecycle Automation</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 3: Three columns -->
+      <div class="row thirds">
+        <div class="blk sdlc" id="blk-sdlc" onclick="openPanel('sdlc')">
+          <div class="blk-label"><span class="blk-icon">🔧</span> Secure SDLC</div>
+          <div class="blk-sub">Threat modeling · Code-to-deploy security gates · Developer enablement</div>
+          <div class="blk-tags">
+            <span class="tag">SAST</span>
+            <span class="tag">DAST</span>
+            <span class="tag">SCA</span>
+            <span class="tag">IaC Scan</span>
+            <span class="tag">Secrets Detection</span>
+            <span class="tag">OWASP SAMM</span>
+          </div>
+        </div>
+        <div class="blk api" id="blk-api" onclick="openPanel('api')">
+          <div class="blk-label"><span class="blk-icon">⚡</span> API Security</div>
+          <div class="blk-sub">Gateway enforcement · AuthN/AuthZ · Runtime protection · Inventory</div>
+          <div class="blk-tags">
+            <span class="tag">Kong/Apigee</span>
+            <span class="tag">OPA/Cedar</span>
+            <span class="tag">Rate Limiting</span>
+            <span class="tag">OWASP API Top 10</span>
+          </div>
+        </div>
+        <div class="blk inf" id="blk-inf" onclick="openPanel('inf')">
+          <div class="blk-label"><span class="blk-icon">☁</span> Infrastructure &amp; Cloud</div>
+          <div class="blk-sub">CSPM · CWPP · Containers · Network segmentation · IaC</div>
+          <div class="blk-tags">
+            <span class="tag">Wiz/Prisma</span>
+            <span class="tag">Checkov</span>
+            <span class="tag">Falco</span>
+            <span class="tag">Istio</span>
+            <span class="tag">ZTNA</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 4: Two columns -->
+      <div class="row halves">
+        <div class="blk dat" id="blk-dat" onclick="openPanel('dat')">
+          <div class="blk-label"><span class="blk-icon">🔒</span> Data Protection &amp; Privacy</div>
+          <div class="blk-sub">4-tier classification · Encryption at rest/transit · DLP · Tokenization · HSM-backed KMS</div>
+          <div class="blk-tags">
+            <span class="tag">AES-256/TLS 1.3</span>
+            <span class="tag">Netskope DLP</span>
+            <span class="tag">CloudHSM</span>
+            <span class="tag">Tokenization</span>
+            <span class="tag">UEBA</span>
+          </div>
+        </div>
+        <div class="blk thr" id="blk-thr" onclick="openPanel('thr')">
+          <div class="blk-label"><span class="blk-icon">🎯</span> Threat Detection &amp; Response</div>
+          <div class="blk-sub">24×7 SOC · SIEM · SOAR automation · EDR · NDR · Threat intelligence · IR lifecycle</div>
+          <div class="blk-tags">
+            <span class="tag">Splunk/Sentinel</span>
+            <span class="tag">CrowdStrike</span>
+            <span class="tag">Exabeam UEBA</span>
+            <span class="tag">MITRE ATT&amp;CK</span>
+            <span class="tag">MTTD &lt;1hr</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 5: Zero Trust -->
+      <div class="row full">
+        <div class="blk zt" id="blk-zt" onclick="openPanel('zt')">
+          <div class="blk-label"><span class="blk-icon">⬡</span> Zero Trust Architecture Foundation</div>
+          <div class="blk-sub">Verify explicitly · Least privilege · Assume breach · Continuous validation · Micro-segmentation · Encrypt everything</div>
+          <div class="blk-tags">
+            <span class="tag">NIST SP 800-207</span>
+            <span class="tag">CISA ZT Maturity v2</span>
+            <span class="tag">Zscaler ZPA</span>
+            <span class="tag">Illumio</span>
+            <span class="tag">No Implicit Trust</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 6: Ops -->
+      <div class="row full">
+        <div class="blk ops" id="blk-ops" onclick="openPanel('ops')">
+          <div class="blk-label"><span class="blk-icon">⚙</span> Security Operations &amp; Automation — Continuous monitoring · Vuln management · Patch orchestration · Compliance validation · Awareness training</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <div id="panel">
+    <div id="panel-inner">
+      <div id="ph">
+        <div id="ph-top">
+          <span id="ph-icon"></span>
+          <button id="ph-close" onclick="closePanel()">✕</button>
+        </div>
+        <div id="ph-name"></div>
+        <div id="ph-desc"></div>
+      </div>
+      <div class="ptabs">
+        <button class="ptab on" data-t="overview" onclick="swTab(this)">Overview</button>
+        <button class="ptab" data-t="controls" onclick="swTab(this)">Controls</button>
+        <button class="ptab" data-t="failures" onclick="swTab(this)">Failures</button>
+        <button class="ptab" data-t="tools" onclick="swTab(this)">Tools</button>
+      </div>
+      <div id="pbody"></div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- STATUS BAR -->
+<div id="statusbar">
+  <div class="sb-item"><div class="sb-dot g"></div>7 Domains Active</div>
+  <div class="sb-item"><div class="sb-dot y"></div>Continuous Compliance</div>
+  <div class="sb-item"><div class="sb-dot r"></div>Zero Standing Privilege</div>
+  <div class="sb-spacer"></div>
+  <div id="sb-hint">Click any domain block to explore · Use scenario buttons to trace attack paths</div>
+</div>
+
+</div><!-- /shell -->
+
+<script>
+const DATA = {
+  gov:{
+    icon:'⚖', name:'Governance, Risk & Compliance',
+    color:'var(--gov)',
+    desc:'Translates board-level risk appetite into operational control objectives across all security domains. Provides regulatory alignment, policy lifecycle management, and audit governance for a Fortune 100 operating profile.',
+    overview:'Enterprise-wide risk governance is the capstone layer of the security program. It establishes risk appetite at the board level, enforces policy across all domains, and ensures continuous regulatory compliance. Without this layer, technical controls operate without strategic coherence or accountability.',
+    controls:[
+      'Risk appetite defined at Board/Audit Committee level — translated into operational thresholds per domain',
+      'Security policy lifecycle: creation, annual review, exception management, and formal sunset process',
+      'Continuous regulatory compliance monitoring: PCI-DSS 4.0, SOX ITGC, HIPAA, GDPR, CCPA',
+      'Third-party and vendor risk management (VRM) — tiered assessment by criticality and data access',
+      'Quarterly access certification; annual control design and operating effectiveness testing',
+      'Material risk escalation: Security team → CISO → Board / Audit Committee pathway',
+      'Security metrics and KPI dashboard reported monthly to CISO, quarterly to Board',
+      'Formal exception process with compensating controls and time-bound remediation'
+    ],
+    failures:[
+      'Risk acceptance without board visibility — material risks buried inside the program with no escalation',
+      'Shadow IT entirely outside GRC scope — unmanaged systems pollute the compliance posture',
+      'Policies last reviewed 3+ years ago — no longer reflect the current environment or threat landscape',
+      'Compliance equated to security — checkbox culture; passing audits without actual control effectiveness',
+      'No formal exception process — controls bypassed informally with no documentation or compensating measure',
+      'Third-party risks unassessed — supply chain compromise or vendor breach creates undetected exposure',
+      'Vulnerability SLAs defined but never enforced — findings age beyond policy limits with no consequence'
+    ],
+    tools:['ServiceNow GRC / RSA Archer — integrated risk and compliance platform','Qualys VMDR / Tenable.io — vulnerability management and SLA tracking','Vanta / Drata — continuous compliance automation (SOC 2, ISO 27001)','OneTrust / TrustArc — privacy management and DSAR automation','Diligent / MetricStream — board reporting and audit management'],
+    frameworks:['NIST CSF 2.0 — Govern function (new in 2.0)','ISO/IEC 27001:2022 — ISMS framework and certification','COBIT 2019 — IT governance alignment to business objectives','PCI-DSS 4.0 — cardholder data environment controls','SOX ITGC — IT general controls for financial reporting systems','GDPR Article 32 / CCPA — data subject rights and breach notification']
+  },
+  iam:{
+    icon:'🔑', name:'Identity & Access Management',
+    color:'var(--iam)',
+    desc:'Identity is the new perimeter. Every human and non-human identity is governed by policy-driven IAM spanning on-premises, cloud, and SaaS. No implicit trust is granted based on network location or prior session state.',
+    overview:'IAM is the highest-leverage security domain. The majority of major breaches trace back to compromised credentials, excessive permissions, or missing MFA. A mature IAM program eliminates standing privilege, enforces phishing-resistant authentication, and governs every non-human identity with the same rigor as human accounts.',
+    controls:[
+      'Phishing-resistant MFA (FIDO2/WebAuthn) mandatory for all human access — SMS fallback prohibited for privileged accounts',
+      'Privileged Access Management — JIT elevation, full session recording, credential vaulting; zero standing privilege',
+      'Workload identity via SPIFFE/SPIRE — short-lived X.509 SVIDs; no static secrets in workload configuration',
+      'Secrets management (HashiCorp Vault / AWS Secrets Manager) — dynamic credentials, auto-rotation',
+      'RBAC with ABAC enrichment — fine-grained, per-resource authorization enforced at the resource layer',
+      'Automated joiner-mover-leaver lifecycle via SCIM / HRMS integration — zero-touch provisioning and de-provisioning',
+      'Quarterly access recertification for all critical systems and privileged roles',
+      'All apps federated to enterprise IdP — local accounts prohibited; shadow IdP not permitted',
+      'Non-human identity (NHI) inventory — full catalog of service accounts, API keys, and OAuth clients'
+    ],
+    failures:[
+      'Privilege creep — over-permissioned accounts never reviewed, de-provisioned, or right-sized over time',
+      'Stale / orphaned service accounts active months after the owning team or project departed',
+      'Long-lived static API keys and secrets embedded in code, CI/CD pipelines, or config management',
+      'No PAM session recording — privileged access occurs with no forensic trail for incident response',
+      'MFA bypass via legacy protocols (NTLM, Basic Auth, SMTP AUTH, IMAP) — common attack path',
+      'Shared credentials between services — no individual accountability; blast radius amplified on compromise',
+      'No NHI inventory — cannot enumerate service account risk or detect anomalous machine behavior',
+      'Cloud IAM not reviewed via CIEM — excessive permissions accumulate unchecked across accounts'
+    ],
+    tools:['Okta / Azure Entra ID — enterprise IdP, SSO, and lifecycle management','CyberArk / Delinea Secret Server — privileged access management (PAM)','HashiCorp Vault / AWS Secrets Manager — secrets and dynamic credential management','SPIFFE/SPIRE — workload identity federation for service-to-service authentication','Saviynt / SailPoint — identity governance and access certification platform'],
+    frameworks:['NIST SP 800-63 Rev 4 — Digital Identity Guidelines (AAL levels)','NIST AC / IA control families — access control and authentication requirements','CIS Controls v8 — Groups 5 and 6 (account and access management)','ISO 27001 Annex A.9 — Access Control','CISA Known Exploited Vulnerabilities — credential-related CVEs']
+  },
+  sdlc:{
+    icon:'🔧', name:'Secure Software Development Lifecycle',
+    color:'var(--sdlc)',
+    desc:'Security embedded at every phase of software delivery — from requirements through decommission. Operationalizes OWASP SAMM with security champions embedded in product teams and automated gates in every CI/CD pipeline.',
+    overview:'Shifting security left reduces the cost and time of remediation by orders of magnitude. A vulnerability caught in design or code review is exponentially cheaper than one found via penetration test or, worse, in production. The SSDLC transforms security from a gate at the end into a continuous property of the engineering culture.',
+    controls:[
+      'Threat modeling (STRIDE / PASTA) mandatory for all new systems and major architectural changes',
+      'Architecture Review Board (ARB) security sign-off required before production deployment for P0/P1 systems',
+      'SAST in CI pipeline — critical and high severity findings block merge or deployment (no overrides without CISO sign-off)',
+      'SCA (Software Composition Analysis) — block deployment on high/critical OSS CVEs with no accepted workaround',
+      'Secret detection via pre-commit hooks and CI scanning (Gitleaks, Trufflehog) — fail-fast on any credential exposure',
+      'Container image signing (Cosign/Sigstore) — unsigned images rejected by admission controller at deploy time',
+      'DAST and API security testing gate before production release for all P0 and P1 systems',
+      'IaC scanning (Checkov, Terrascan) integrated into Terraform pipelines — misconfiguration blocks promotion',
+      'Security champion per product team; annual secure coding training per language stack'
+    ],
+    failures:[
+      'Security gates bypassed via emergency change process — the exception becomes the default deployment path',
+      'No threat modeling for new features — security discovered via external pentest, not design review',
+      'Unscanned OSS dependencies — known critical CVEs present in production for months, no SCA SLA enforced',
+      'Secrets committed to source control — found by automated scanners weeks later, or by attackers first',
+      'DAST not run before production — OWASP Top 10 vulnerabilities discovered post-release under real attack conditions',
+      'No security champion program — central security team becomes a bottleneck and cultural blocker',
+      'IaC not used consistently — manual cloud provisioning creates undocumented config drift and unauditable history'
+    ],
+    tools:['Checkmarx One / Semgrep — SAST with developer-friendly IDE integration','Snyk / Mend (WhiteSource) — SCA and OSS dependency vulnerability management','Burp Suite Enterprise / StackHawk — DAST and API security testing in CI/CD','Trivy / Sysdig Secure — container image scanning and SBOM generation','Gitleaks / Trufflehog — secrets detection in commit history and CI pipelines','IriusRisk / Threat Dragon / Microsoft TMT — threat modeling platforms'],
+    frameworks:['OWASP SAMM 2.0 — Software Assurance Maturity Model (activity-level maturity)','NIST SSDF SP 800-218 — Secure Software Development Framework','BSIMM 14 — industry benchmark for software security programs','SLSA Framework — Supply-chain Levels for Software Artifacts','CIS Software Supply Chain Security Guide']
+  },
+  api:{
+    icon:'⚡', name:'API Security',
+    color:'var(--api)',
+    desc:'APIs are the primary attack surface of the modern enterprise. This domain governs design standards, authentication, authorization, runtime protection, and inventory management for all internal, partner, and public-facing APIs.',
+    overview:'Every enterprise function — mobile apps, partner integrations, microservices, and AI agents — communicates via APIs. An insecure API exposes backend data and logic regardless of how well other controls are implemented. BOLA (broken object-level authorization) alone accounts for a significant proportion of API breaches and is missed by traditional SAST/WAF tooling.',
+    controls:[
+      'API gateway enforces authentication, rate limiting, input validation, and TLS termination centrally for all APIs',
+      'OAuth 2.1 + PKCE for external APIs; mTLS + JWT for internal service-to-service communication',
+      'Externalized authorization via OPA or Cedar — object-level and function-level RBAC/ABAC enforced server-side',
+      'Schema-driven input validation at gateway layer — reject-by-default for malformed or out-of-spec payloads',
+      'API catalog mandatory — shadow API detection integrated with CSPM; no undocumented endpoints in production',
+      'Per-client, per-scope, per-endpoint rate limiting and payload size throttling enforced at gateway',
+      'OWASP API Top 10 automated test coverage in CI/CD — critical findings block deployment',
+      'API versioning and deprecation policy — deprecated endpoints removed on schedule, no silent accumulation',
+      'Bot protection and step-up authentication for sensitive workflow endpoints (account takeover surface)'
+    ],
+    failures:[
+      'BOLA / IDOR — broken object-level authorization, the #1 API risk; missed entirely by SAST and perimeter WAF',
+      'Shadow APIs — undocumented endpoints deployed by teams, discovered only during breaches or annual pentests',
+      'No rate limits on authentication endpoints — credential stuffing and brute force attacks succeed trivially',
+      'Tokens with excessive scope or multi-year expiry — provide unlimited access long after intended session ends',
+      'No API security testing in CI — OWASP API Top 10 gaps found only via annual pentest after months in production',
+      'Over-posting / mass assignment — client-controlled fields persisted without server-side allowlist validation',
+      'API keys embedded in JavaScript, mobile app binaries, or public GitHub repositories — discovered by attackers'
+    ],
+    tools:['Kong Enterprise / Apigee — API gateway with centralized policy enforcement','OPA (Open Policy Agent) / AWS Cedar — externalized authorization engine','StackHawk / OWASP ZAP — API security testing integrated into CI/CD pipelines','Noname Security / Salt Security — API discovery, inventory, and runtime anomaly detection','AWS API Gateway / Azure APIM — cloud-native API management and enforcement'],
+    frameworks:['OWASP API Security Top 10 (2023 edition)','OAuth 2.1 (RFC 9700) with PKCE for public clients','NIST SP 800-204 — Security Strategies for Microservices','OpenAPI 3.x specification as enforcement contract for schema validation']
+  },
+  inf:{
+    icon:'☁', name:'Infrastructure & Cloud Security',
+    color:'var(--inf)',
+    desc:'Governs secure configuration, hardening, network segmentation, and runtime posture across a hybrid multi-cloud environment — AWS, Azure, GCP, on-premises data centers, and colocation facilities.',
+    overview:'Cloud misconfigurations remain the leading cause of enterprise data breaches. The infrastructure domain addresses this through continuous posture management, IaC-enforced standards, and runtime workload protection. Network segmentation limits lateral movement when perimeter controls fail — which they will.',
+    controls:[
+      'CSPM — continuous misconfiguration detection across all cloud accounts, all regions, all services in near real-time',
+      'CIEM — detect and right-size excessive cloud IAM permissions; enforce least privilege at the cloud platform layer',
+      'IaC (Terraform) mandatory — no manual cloud resource provisioning; all changes version-controlled and reviewed',
+      'Container security: signed images (Cosign/Sigstore), registry scanning, runtime anomaly detection (Falco)',
+      'OPA Gatekeeper / Kyverno admission controllers enforce pod security standards before workloads deploy',
+      'CIS Kubernetes Benchmark compliance; network policies enforce east-west traffic restrictions between namespaces',
+      'WAF and DDoS mitigation at perimeter — all internet-facing ingress behind Cloudflare Enterprise or Akamai',
+      'Service mesh (Istio / Linkerd) enforces mTLS for all east-west service communication',
+      'ZTNA replaces legacy VPN — per-application access based on identity and device posture, not network location'
+    ],
+    failures:[
+      'Publicly exposed cloud storage (S3, Azure Blob, GCS) — unintentional public access, still the leading cloud breach vector',
+      'AdministratorAccess / Owner roles attached to service accounts broadly across the cloud environment',
+      'Unpatched VMs and container base images — no patch management SLA; critical CVEs present for weeks undetected',
+      'No CIEM — cloud IAM permissions never reviewed; blast radius from any compromise is unlimited',
+      'Container images running as root with critical CVEs in base layers; no admission controller to block deployment',
+      'Flat network — no east-west segmentation; attacker post-compromise has unrestricted lateral movement to any system',
+      'IaC not consistently used — manual provisioning creates undocumented, unauditable configuration drift at scale'
+    ],
+    tools:['Wiz / Prisma Cloud (Palo Alto) — CSPM and CNAPP (cloud-native application protection)','Falco / OPA Gatekeeper — container runtime security and Kubernetes admission control','Checkov / Terrascan — IaC scanning for Terraform, CloudFormation, Helm','Cloudflare Enterprise / Akamai — WAF, DDoS protection, and edge security','Istio / Linkerd — service mesh for mTLS and east-west traffic policy','Cilium — eBPF-based network policy and observability for Kubernetes'],
+    frameworks:['CIS Benchmarks — cloud providers (AWS, Azure, GCP), Kubernetes, Linux OS hardening','NIST SP 800-190 — Application Container Security Guide','CSA Cloud Controls Matrix (CCM) — cloud security framework','CISA Cloud Security Technical Reference Architecture (TRA)']
+  },
+  dat:{
+    icon:'🔒', name:'Data Protection & Privacy',
+    color:'var(--dat)',
+    desc:'Governs classification, encryption, retention, and loss prevention for all enterprise data across its full lifecycle — at rest, in transit, and in use — with regulatory controls mapped to each classification tier.',
+    overview:'Data is the target of every sophisticated attack. Without classification, encryption cannot be prioritized and DLP cannot be tuned. This domain ensures that the sensitivity of data directly determines the controls applied — and that encryption, key management, and data loss prevention work as a layered system, not as isolated point solutions.',
+    controls:[
+      'Four-tier classification: Public / Internal / Confidential / Restricted — drives every downstream control decision',
+      'TLS 1.3 minimum for all data in transit; TLS 1.0 and 1.1 deprecated and blocked across all systems',
+      'AES-256-GCM for data at rest; envelope encryption with centralized, HSM-backed KMS',
+      'Per-application key hierarchy — no shared encryption keys across data domains; enforced annual rotation',
+      'PCI tokenization at point of card entry — PANs never stored in application, API response, or log tiers',
+      'Enterprise DLP enforced at endpoint, email gateway, egress proxy, and cloud upload / CASB layer',
+      'UEBA analytics detect anomalous data access patterns, bulk export behavior, and exfiltration indicators',
+      'Data retention and disposal policy enforced per classification tier and applicable regulatory obligation',
+      'Privacy by design — PII minimization, pseudonymization, and consent management in all new system designs'
+    ],
+    failures:[
+      'Unencrypted PII or PHI present in development and test environments — developers can directly query sensitive data',
+      'No data classification — security controls applied uniformly at too high or too low a level enterprise-wide',
+      'Key sprawl — encryption keys not inventoried, not rotated, and not centrally managed in a KMS',
+      'Over-retention — data held far beyond legal and operational requirement, massively increasing breach impact',
+      'DLP policies generate overwhelming false-positive alert volume — analysts disable or ignore them entirely',
+      'PHI or financial data accessible to any engineer with database read access, no need-to-know review process',
+      'Tokenization gaps — PANs present in application logs, audit tables, error responses, or backup exports'
+    ],
+    tools:['Symantec DLP / Netskope — enterprise DLP enforcement and CASB for cloud data control','AWS KMS + CloudHSM / Azure Key Vault Premium — cloud key management services','Thales Luna HSM — hardware security module for cryptographic key protection','BigID / OneTrust — data discovery, classification, and privacy rights management','Varonis — data access governance and sensitive data risk analysis'],
+    frameworks:['NIST SP 800-57 — Recommendation for Cryptographic Key Management','GDPR Article 32 — Security of Processing (encryption and confidentiality)','PCI-DSS Requirements 3 and 4 — cardholder data storage and transmission','HIPAA §164.312 — Technical Safeguards for PHI','ISO 27001 Annex A.10 — Cryptography controls']
+  },
+  thr:{
+    icon:'🎯', name:'Threat Detection & Response',
+    color:'var(--thr)',
+    desc:'24×7 detection, triage, containment, eradication, and recovery across application, identity, network, and endpoint telemetry. Organized around NIST 800-61 with SOAR-driven automation and continuous MITRE ATT&CK coverage mapping.',
+    overview:'Detection capability determines how fast you can contain a breach. Every hour of undetected attacker dwell time increases the blast radius exponentially. This domain operates on the premise that breaches will occur and focuses resources on minimizing detection time, automating initial response, and ensuring forensic quality of incident data from the start.',
+    controls:[
+      'SIEM correlation rules mapped to MITRE ATT&CK enterprise tactics — coverage tracked and reported quarterly',
+      'SOAR playbooks automate triage, enrichment, and initial containment (>70% P2/P3 automation rate target)',
+      'EDR coverage mandatory on all managed endpoints, servers, and container hosts — no exceptions or gaps permitted',
+      'UEBA detects compromised accounts, insider threat, abnormal lateral movement, and bulk data access',
+      'NDR for east-west anomaly detection — visibility into internal traffic beyond perimeter telemetry alone',
+      'Threat intelligence integrated via TIP (IOC matching, adversary TTP feeds, dark web monitoring)',
+      'KPI targets: MTTD <1hr (P1/P2) · MTTR <4hr (P1) · False Positive Rate <5% · SIEM coverage >95% critical assets',
+      'Annual IR tabletop exercises; purple team minimum annually; external IR retainer maintained at all times',
+      'Post-incident reviews mandatory for P1 and P2 — findings tracked to verified control remediation'
+    ],
+    failures:[
+      'Alert fatigue — high false-positive rate causes L1 analysts to bulk-close alerts without meaningful review',
+      'No playbooks for most common scenarios (phishing, ransomware, credential theft) — analysts improvise under pressure',
+      'Insufficient telemetry — critical assets, APIs, cloud services, and container platforms missing from SIEM ingestion',
+      'MTTD and MTTR not tracked or reported — no objective visibility into detection program effectiveness over time',
+      'EDR gaps — unmanaged endpoints, servers, or cloud workloads create persistent adversary blind spots',
+      'No threat hunting — program is entirely reactive; no proactive ATT&CK-based hunting to find pre-breach indicators',
+      'IR plan last tested 3+ years ago — no muscle memory built; teams rely on a document they have never rehearsed'
+    ],
+    tools:['Splunk Enterprise Security / Microsoft Sentinel — SIEM and security analytics','Splunk SOAR / Palo Alto Cortex XSOAR — security orchestration and automated response','CrowdStrike Falcon / SentinelOne — endpoint detection and response (EDR)','Exabeam / Securonix — user and entity behavior analytics (UEBA)','Corelight / ExtraHop Reveal(x) — network detection and response (NDR)','ThreatConnect / Recorded Future — threat intelligence platform (TIP)'],
+    frameworks:['NIST SP 800-61 Rev 2 — Computer Security Incident Handling Guide','MITRE ATT&CK Enterprise — technique and tactic coverage mapping','Cyber Kill Chain (Lockheed Martin) — adversary lifecycle model','CISA CIRCIA — mandatory incident reporting obligations for critical infrastructure']
+  },
+  zt:{
+    icon:'⬡', name:'Zero Trust Architecture Foundation',
+    color:'var(--zt)',
+    desc:'Architectural principle governing all access decisions enterprise-wide. No implicit trust based on network location. Every request — from any user, device, or service — is continuously verified before minimum necessary access is granted.',
+    overview:'Zero Trust is not a product — it is an architectural philosophy that eliminates the concept of a trusted network interior. It is the foundational principle that makes every other domain\'s controls coherent and composable. Without Zero Trust as the governing model, IAM, API security, and infrastructure controls operate in isolation and leave gaps that attackers exploit.',
+    controls:[
+      'Verify explicitly — authenticate and authorize every single request, every time, without network-location exceptions',
+      'Least privilege access — minimum permissions granted; JIT elevation required for all privileged tasks',
+      'Assume breach — architect for containment; limit blast radius; encrypt all traffic; monitor all communication',
+      'Continuous validation — re-evaluate trust signals (device posture, identity, location, behavior) at runtime',
+      'Micro-segmentation — prevent lateral movement post-compromise; limit attacker reach to one workload at a time',
+      'All traffic encrypted — mTLS east-west, TLS 1.3 north-south; no cleartext service communication permitted',
+      'Strong identity for every user, device, and workload — no anonymous or network-location-based trust grants',
+      'Device posture evaluated at every access request — unmanaged or compromised devices denied access'
+    ],
+    failures:[
+      'Implicit trust zones — "if it\'s on the internal network, it\'s trusted" remains the dominant mental model in practice',
+      'Flat network with no east-west controls — attacker reaches all systems after initial single-host compromise',
+      'VPN as perimeter substitute — provides broad network-layer access rather than workload-level authorization',
+      'No device posture in access decisions — compromised or unmanaged devices gain full user-level network access',
+      'Excessive trust duration — long-lived sessions and tokens never re-evaluated against current context or posture',
+      'Zero Trust purchased as a single vendor product (ZTNA only), not implemented as an end-to-end architecture',
+      'ZT principles applied only at the network edge — internal service-to-service traffic completely uncontrolled'
+    ],
+    tools:['Zscaler ZPA / ZIA — ZTNA and secure web gateway (cloud-delivered)','Palo Alto Prisma Access — cloud-delivered Zero Trust network access','Illumio Core — application micro-segmentation to contain lateral movement','SPIFFE/SPIRE — workload identity foundation for Zero Trust service mesh','BeyondCorp Enterprise (Google) — identity-aware proxy for application-level ZT access'],
+    frameworks:['NIST SP 800-207 — Zero Trust Architecture (the reference standard)','CISA Zero Trust Maturity Model v2.0 — five-pillar maturity assessment','DoD Zero Trust Reference Architecture — enterprise ZT implementation roadmap','NIST SP 800-215 — Guide to a Secure Enterprise Network Landscape']
+  },
+  ops:{
+    icon:'⚙', name:'Security Operations & Automation',
+    color:'var(--ops)',
+    desc:'Operational execution layer of the enterprise security program — continuous monitoring, vulnerability management, patch orchestration, compliance validation, and security awareness training at enterprise scale.',
+    overview:'The best-designed controls fail without operational discipline to run and maintain them. Security Operations is the continuous, daily execution layer that keeps every other domain functioning: patching systems before exploits arrive, tracking vulnerabilities to remediation, validating that controls are operating as designed, and ensuring every employee understands their role in the security posture.',
+    controls:[
+      '24×7 SOC with tiered model — L1 auto-triage → L2 investigation → L3 escalation → CISO notification path',
+      'Vulnerability management SLAs: Critical 72hr · High 14 days · Medium 45 days · Low 90 days — tracked to remediation',
+      'Risk-based vulnerability prioritization — CVSS score + asset criticality + EPSS exploit probability combined',
+      'Automated patch orchestration for OS and application layers — critical patch lag target under 72 hours',
+      'Continuous compliance scanning — detect configuration drift from approved security baselines in near real-time',
+      'Security KPIs reported monthly to CISO; quarterly trend data to Board / Audit Committee',
+      'Red team / purple team exercises minimum annually; findings tracked to verified remediation, not just documented',
+      'Security awareness training with phishing simulation — behavioral metrics tracked per business unit over time'
+    ],
+    failures:[
+      'Vulnerability management without enforced remediation SLAs — high-severity findings persist for months or years',
+      'Manual patching — critical patch lag exceeds 30 days, well outside policy requirements and regulatory expectations',
+      'No security KPIs or metrics — program effectiveness is anecdotal, undocumented, and cannot be reported accurately',
+      'Siloed operations — security and IT operations teams use separate tools and processes with no shared workflow',
+      'Awareness training as annual compliance checkbox only — no behavioral change measurement or phishing simulation',
+      'Red team findings not systematically tracked — same vulnerabilities recur in successive engagements year over year',
+      'SOC overwhelmed by volume — no automation, every alert manually triaged, analysts burning out, coverage degrading'
+    ],
+    tools:['Qualys VMDR / Tenable.io — vulnerability management and risk-based prioritization','ServiceNow ITSM — integrated ticket-based remediation tracking with SLA enforcement','KnowBe4 / Proofpoint Security Awareness — awareness training and phishing simulation','Nucleus Security / Kenna Security — risk-based vulnerability prioritization and correlation','Splunk / Microsoft Sentinel — operations monitoring and compliance dashboard'],
+    frameworks:['NIST CSF 2.0 — Respond and Recover functions','CIS Controls v8 — Implementation Groups 2 and 3 for operational controls','MITRE D3FEND — defensive technique mapping for blue team operations','SANS Critical Security Controls — operational security baseline prioritization']
+  }
+};
+
+const SCENARIOS = {
+  cred:{
+    label:'Credential Theft',
+    hot:['iam','thr','ops'],
+    desc:'Attacker phishes or brute-forces credentials → gains initial access → moves laterally. Key domains: Identity (MFA, PAM, JIT), Threat Detection (UEBA anomaly, impossible travel), Operations (IR playbook execution).'
+  },
+  supply:{
+    label:'Supply Chain Attack',
+    hot:['sdlc','inf','thr'],
+    desc:'Malicious OSS package or compromised build pipeline injects backdoor into software → deployed to production. Key domains: Secure SDLC (SCA gate, artifact signing), Infrastructure (container runtime detection), Threat Detection (anomalous process behavior).'
+  },
+  exfil:{
+    label:'Data Exfiltration',
+    hot:['iam','dat','thr','ops'],
+    desc:'Insider or compromised account performs bulk data export or sends sensitive data externally. Key domains: Identity (access scope, JIT review), Data Protection (DLP, UEBA anomaly), Threat Detection (SIEM alert, SOAR quarantine).'
+  },
+  cloud:{
+    label:'Cloud Misconfiguration',
+    hot:['inf','zt','ops'],
+    desc:'Publicly exposed S3 bucket or over-permissioned IAM role exploited by external attacker. Key domains: Infrastructure (CSPM detection, CIEM right-sizing), Zero Trust (no lateral movement), Operations (72-hour critical remediation SLA).'
+  },
+  api:{
+    label:'API Exploit (BOLA)',
+    hot:['api','iam','thr'],
+    desc:'Attacker manipulates object IDs in API requests to access other users\' data (Broken Object Level Authorization). Key domains: API Security (OPA authz, schema validation), Identity (token scope, expiry), Threat Detection (anomalous API call patterns).'
+  }
+};
+
+let activePanel = null;
+let activeTab = 'overview';
+let activeScenario = null;
+
+function openPanel(id) {
+  activePanel = id;
+  activeTab = 'overview';
+  document.querySelectorAll('.blk').forEach(b => b.classList.remove('active'));
+  document.getElementById('blk-' + id).classList.add('active');
+  const d = DATA[id];
+  document.getElementById('ph-icon').textContent = d.icon;
+  document.getElementById('ph-name').textContent = d.name;
+  document.getElementById('ph-name').style.color = d.color;
+  document.getElementById('ph-desc').textContent = d.desc;
+  document.querySelectorAll('.ptab').forEach(t => t.classList.toggle('on', t.dataset.t === 'overview'));
+  renderPbody(id, 'overview');
+  document.getElementById('panel').classList.add('open');
+}
+
+function closePanel() {
+  document.getElementById('panel').classList.remove('open');
+  document.querySelectorAll('.blk').forEach(b => b.classList.remove('active'));
+  activePanel = null;
+}
+
+function swTab(btn) {
+  document.querySelectorAll('.ptab').forEach(t => t.classList.remove('on'));
+  btn.classList.add('on');
+  activeTab = btn.dataset.t;
+  if (activePanel) renderPbody(activePanel, activeTab);
+}
+
+function renderPbody(id, tab) {
+  const d = DATA[id];
+  const body = document.getElementById('pbody');
+  let html = '';
+  if (tab === 'overview') {
+    html = '<div class="p-purpose">' + d.overview + '</div>';
+  } else if (tab === 'controls') {
+    html = '<div class="psect">Key Controls</div>';
+    html += d.controls.map(c => '<div class="pitem ctrl"><div class="pitem-dot"></div><span>' + c + '</span></div>').join('');
+  } else if (tab === 'failures') {
+    html = '<div class="psect">Common Failure Modes</div>';
+    html += d.failures.map(f => '<div class="pitem fail"><div class="pitem-dot"></div><span>' + f + '</span></div>').join('');
+  } else if (tab === 'tools') {
+    html = '<div class="psect">Approved Tooling</div>';
+    html += d.tools.map(t => '<div class="pitem tool"><div class="pitem-dot"></div><span>' + t + '</span></div>').join('');
+    html += '<div class="psect">Frameworks & Standards</div>';
+    html += d.frameworks.map(f => '<div class="pitem fwk"><div class="pitem-dot"></div><span>' + f + '</span></div>').join('');
+  }
+  body.innerHTML = html;
+}
+
+function runScenario(key) {
+  clearScenario();
+  activeScenario = key;
+  const sc = SCENARIOS[key];
+  document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const all = ['gov','iam','sdlc','api','inf','dat','thr','zt','ops'];
+  all.forEach(id => {
+    const el = document.getElementById('blk-' + id);
+    if (sc.hot.includes(id)) {
+      el.classList.add('trace-high');
+      el.classList.remove('dimmed');
+    } else {
+      el.classList.add('dimmed');
+      el.classList.remove('trace-high');
+    }
+  });
+  document.getElementById('sb-hint').textContent = '⚠ ' + sc.label + ': ' + sc.desc;
+}
+
+function clearScenario() {
+  activeScenario = null;
+  document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.blk').forEach(b => {
+    b.classList.remove('dimmed','trace-high');
+  });
+  document.getElementById('sb-hint').textContent = 'Click any domain block to explore · Use scenario buttons to trace attack paths';
+}
+</script>
+</body>
+</html>
